@@ -113,7 +113,7 @@ local function main()
 
     -- 创建主表单
     m = SimpleForm("docker", translate("Docker - Volumes"),
-        translate("This page displays all docker volumes that have been created on the connected docker host."))
+        translate("This page displays all containers that have been created on the connected docker host."))
     m.submit = false
     m.reset = false
 

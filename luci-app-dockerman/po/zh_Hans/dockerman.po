@@ -873,9 +873,7 @@ msgid ""
 msgstr "在容器中以用户运行命令。(格式:name|uid[:group|gid])"
 
 #: applications/luci-app-dockerman/luasrc/model/cbi/dockerman/containers.lua:95
-msgid ""
-"This page displays all containers that have been created on the connected "
-"docker host."
+msgid "This page displays all containers that have been created on the connected docker host."
 msgstr "此页面显示在连接的Docker主机上已创建的所有容器。"
 
 #: applications/luci-app-dockerman/luasrc/model/cbi/dockerman/networks.lua:52
@@ -961,7 +959,7 @@ msgstr ""
 
 #: applications/luci-app-dockerman/luasrc/model/cbi/dockerman/overview.lua:140
 msgid "Cannot connect to Docker daemon. Is the docker daemon running?"
-msgstr "无法连接到 Docker 守护进程，Docker 是否已启动？"
+msgstr "无法连接到 Docker 守护进程，请启动Dockerd服务"
 
 msgid "Enable BuildKit"
 msgstr "启用 BuildKit"

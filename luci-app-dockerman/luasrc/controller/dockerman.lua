@@ -34,39 +34,122 @@ function index()
 end
 
 function action_events()
-	local logs = ""
-	local query ={}
-
-	local dk = docker.new()
-	query["until"] = os.time()
-	local events = dk:events({query = query})
-
-	if events.code == 200 then
-		for _, v in ipairs(events.body) do
-			local date = "unknown"
-			if v and v.time then
-				date = os.date("%Y-%m-%d %H:%M:%S", v.time)
-			end
-
-			local name = v.Actor.Attributes.name or "unknown"
-			local action = v.Action or "unknown"
-
-			if v and v.Type == "container" then
-				local id = v.Actor.ID or "unknown"
-				logs = logs .. string.format("[%s] %s %s Container ID: %s Container Name: %s\n", date, v.Type, action, id, name)
-			elseif v.Type == "network" then
-				local container = v.Actor.Attributes.container or "unknown"
-				local network = v.Actor.Attributes.type or "unknown"
-				logs = logs .. string.format("[%s] %s %s Container ID: %s Network Name: %s Network type: %s\n", date, v.Type, action, container, name, network)
-			elseif v.Type == "image" then
-				local id = v.Actor.ID or "unknown"
-				logs = logs .. string.format("[%s] %s %s Image: %s Image name: %s\n", date, v.Type, action, id, name)
-			end
-		end
-	end
-
-	luci.template.render("dockerman/logs", {self={syslog = logs, title="Events"}})
+    local logs = ""
+    local query = {}
+    
+    local function is_docker_running()
+        local f = io.open("/var/run/docker.pid", "r")
+        if f then
+            f:close()
+            return true
+        end
+        local sock = io.open("/var/run/docker.sock", "r")
+        if sock then
+            sock:close()
+            return true
+        end
+        return false
+    end
+    
+    if not is_docker_running() then
+        logs = "Docker service is not running. Please start Docker service first.\n"
+        luci.template.render("dockerman/logs", {self={syslog = logs, title="Events"}})
+        return
+    end
+    
+    local dk = docker.new()
+    query["until"] = os.time()
+    query["since"] = os.time() - 3600
+    
+    local success, events = pcall(function()
+        return dk:events({query = query})
+    end)
+    
+    if not success then
+        logs = "Failed to connect to Docker API. Error: " .. tostring(events) .. "\n"
+        logs = logs .. "Please check if Docker service is running properly.\n"
+        luci.template.render("dockerman/logs", {self={syslog = logs, title="Events"}})
+        return
+    end
+    
+    if events.code == 200 then
+        if not events.body or #events.body == 0 then
+            logs = "No events found in the last hour\n"
+            logs = logs .. "Tip: Run some Docker commands to generate events (e.g., docker run hello-world)\n"
+        else
+            for _, v in ipairs(events.body) do
+                if type(v) == "table" then
+                    local date = "unknown"
+                    if v.time then
+                        date = os.date("%Y-%m-%d %H:%M:%S", v.time)
+                    end
+                    
+                    local event_type = v.Type or "unknown"
+                    local action = v.Action or "unknown"
+                    local scope = v.scope or "local"
+                    
+                    local actor = v.Actor or {}
+                    local actor_id = actor.ID or ""
+                    local attributes = actor.Attributes or {}
+                    
+                    local short_id = ""
+                    if actor_id and actor_id ~= "" then
+                        short_id = actor_id:sub(1,12)
+                    else
+                        short_id = "unknown"
+                    end
+                    
+                    if event_type == "container" then
+                        local name = attributes.name or "unknown"
+                        local image = attributes.image or "unknown"
+                        logs = logs .. string.format("[%s] [%s] %s %s - Container: %s (ID: %s) Image: %s\n", 
+                            date, scope, event_type, action, name, short_id, image)
+                            
+                    elseif event_type == "image" then
+                        local name = attributes.name or actor_id
+                        if name == "" then
+                            name = "unknown"
+                        end
+                        logs = logs .. string.format("[%s] [%s] %s %s - Image: %s\n", 
+                            date, scope, event_type, action, name)
+                            
+                    elseif event_type == "network" then
+                        local name = attributes.name or "unknown"
+                        local container = attributes.container or "unknown"
+                        logs = logs .. string.format("[%s] [%s] %s %s - Network: %s Container: %s\n", 
+                            date, scope, event_type, action, name, container)
+                            
+                    elseif event_type == "daemon" then
+                        logs = logs .. string.format("[%s] [%s] %s %s - Daemon reload/restart\n", 
+                            date, scope, event_type, action)
+                            
+                    elseif event_type == "volume" then
+                        local name = attributes.name or "unknown"
+                        logs = logs .. string.format("[%s] [%s] %s %s - Volume: %s\n", 
+                            date, scope, event_type, action, name)
+                            
+                    else
+                        logs = logs .. string.format("[%s] [%s] %s %s - ID: %s\n", 
+                            date, scope, event_type, action, short_id)
+                    end
+                end
+            end
+        end
+    else
+        logs = string.format("Docker API error: Code %d - %s\n", events.code, tostring(events.body))
+        if events.code == 404 or events.code == 500 then
+            logs = logs .. "Docker service may not be running properly. Please check Docker status.\n"
+        end
+    end
+    
+    if logs == "" then
+        logs = "No events found in the last hour\n"
+        logs = logs .. "Tip: Run some Docker commands to generate events (e.g., docker run hello-world)\n"
+    end
+    
+    luci.template.render("dockerman/logs", {self={syslog = logs, title="Events"}})
 end
+
 
 local calculate_cpu_percent = function(d)
 	if type(d) ~= "table" then
