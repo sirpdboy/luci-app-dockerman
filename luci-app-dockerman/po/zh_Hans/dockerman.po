@@ -48,6 +48,10 @@ msgstr "Api 版本"
 msgid "Auto create macvlan interface in Openwrt"
 msgstr "在 Openwrt 中自动创建 macvlan 界面"
 
+#: applications/luci-app-dockerman/luasrc/model/cbi/dockerman/configuration.lua:18
+msgid "Auto start"
+msgstr "自动启动"
+
 #: applications/luci-app-dockerman/luasrc/model/cbi/dockerman/overview.lua:64
 msgid "Available"
 msgstr "可用"

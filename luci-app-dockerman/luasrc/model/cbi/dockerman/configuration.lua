@@ -1,6 +1,7 @@
 -- Copyright 2021 Florian Eckert <fe@dev.tdt.de>
 -- Licensed to the public under the Apache License 2.0.
 
+local uci = (require "luci.model.uci").cursor()
 local m, s, o
 
 m = Map("dockerd",
@@ -8,6 +9,18 @@ m = Map("dockerd",
 	translate("DockerMan is a simple docker manager client for LuCI"))
 
 s = m:section(NamedSection, "globals", "section", translate("Global settings"))
+
+o = s:option(Flag, "auto_start", translate("Auto start"))
+o.rmempty = false
+o.default = "1"
+o.write = function(self, section, value)
+		if value == "1" then
+			luci.util.exec("/etc/init.d/dockerd enable")
+		else
+			luci.util.exec("/etc/init.d/dockerd disable")
+		end
+		m.uci:set("dockerd", "globals", "auto_start", value)
+end
 
 o = s:option(Flag, "remote_endpoint",
 	translate("Remote Endpoint"),
