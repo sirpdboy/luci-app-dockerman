@@ -15,9 +15,9 @@ o.rmempty = false
 o.default = "1"
 o.write = function(self, section, value)
 		if value == "1" then
-			luci.util.exec("/etc/init.d/dockerd enable")
+			luci.util.exec("/etc/init.d/dockerd start && /etc/init.d/dockerd enable")
 		else
-			luci.util.exec("/etc/init.d/dockerd disable")
+			luci.util.exec("/etc/init.d/dockerd stop && /etc/init.d/dockerd disable")
 		end
 		m.uci:set("dockerd", "globals", "auto_start", value)
 end
